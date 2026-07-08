@@ -27,7 +27,7 @@ type SuggestedMarkdownCell = {
 
 type AiVivaAnswer = {
   question: string;
-  suggestedAnswer: string;
+  answer: string;
 };
 
 type AiNarrative = {
@@ -460,7 +460,7 @@ function AuditResults({
         </a>
 
         <button
-          onClick={() => downloadPdfReport(result, setPdfLoading)}
+          onClick={() => downloadPdfReport(result, setPdfLoading, aiNarrative)}
           disabled={pdfLoading}
           className="rounded-full bg-white px-6 py-3 text-sm font-bold text-[#020817] transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
         >
@@ -606,7 +606,7 @@ function AiExaminerPanel({
                         Q{index + 1}. {item.question}
                       </p>
                       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-300">
-                        {item.suggestedAnswer}
+                        {item.answer}
                       </p>
                     </div>
                   ))
@@ -1060,7 +1060,8 @@ function prettyLabel(value: string) {
 
 async function downloadPdfReport(
   result: AuditResult,
-  setPdfLoading: (value: boolean) => void
+  setPdfLoading: (value: boolean) => void,
+  aiNarrative: AiNarrative | null
 ) {
   setPdfLoading(true);
 
@@ -1070,43 +1071,43 @@ async function downloadPdfReport(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(result),
+      body: JSON.stringify({
+        auditResult: result,
+        aiNarrative: aiNarrative ?? null,
+      }),
     });
 
-    const contentType = response.headers.get("Content-Type") || "";
-
     if (!response.ok) {
-      if (contentType.includes("application/json")) {
-        const data = await response.json();
-        throw new Error(data.error || "PDF generation failed.");
-      }
-
-      const text = await response.text();
-      throw new Error(text || "PDF generation failed.");
+      const errorData = await response.json().catch(() => null);
+      throw new Error(
+        errorData?.error || "PDF generation failed. Please try again."
+      );
     }
 
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
+    const url = window.URL.createObjectURL(blob);
 
     const safeName = result.fileName
       .replace(/\.ipynb$/i, "")
       .replace(/[^a-z0-9-_]+/gi, "_")
+      .replace(/^_+|_+$/g, "")
       .toLowerCase();
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = `modelhawk-audit-${safeName}.pdf`;
+    link.download = `modelhawk-audit-${safeName || "notebook"}.pdf`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
 
-    URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(url);
   } catch (error) {
-    alert(
+    const message =
       error instanceof Error
         ? error.message
-        : "The PDF report could not be generated."
-    );
+        : "PDF generation failed. Please try again.";
+
+    alert(message);
   } finally {
     setPdfLoading(false);
   }

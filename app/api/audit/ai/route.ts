@@ -57,7 +57,7 @@ type AiNarrative = {
   suggestedMarkdownCells: SuggestedMarkdownCell[];
   vivaAnswers: {
     question: string;
-    suggestedAnswer: string;
+    answer: string;
   }[];
   limitations: string[];
 };
@@ -267,11 +267,11 @@ const AI_NARRATIVE_SCHEMA = {
           question: {
             type: "string",
           },
-          suggestedAnswer: {
+          answer: {
             type: "string",
           },
         },
-        required: ["question", "suggestedAnswer"],
+        required: ["question", "answer"],
       },
     },
     limitations: {
@@ -340,26 +340,10 @@ function buildControlledAiNarrative(
   const deterministicPortfolioVerdict = buildPortfolioVerdict(auditResult);
 
   return {
-    executiveSummary: selectSafeAiText(
-      aiCandidate.executiveSummary,
-      deterministicExecutiveSummary,
-      160
-    ),
-    technicalAssessment: selectSafeAiText(
-      aiCandidate.technicalAssessment,
-      deterministicTechnicalAssessment,
-      220
-    ),
-    riskInterpretation: selectSafeAiText(
-      aiCandidate.riskInterpretation,
-      deterministicRiskInterpretation,
-      180
-    ),
-    portfolioVerdict: selectSafeAiText(
-      aiCandidate.portfolioVerdict,
-      deterministicPortfolioVerdict,
-      160
-    ),
+    executiveSummary: deterministicExecutiveSummary,
+    technicalAssessment: deterministicTechnicalAssessment,
+    riskInterpretation: deterministicRiskInterpretation,
+    portfolioVerdict: deterministicPortfolioVerdict,
     improvedRecommendations: buildRecommendations(aiCandidate, auditResult),
     suggestedMarkdownCells: buildMarkdownCells(aiCandidate, auditResult),
     vivaAnswers: buildVivaAnswers(auditResult),
@@ -473,12 +457,14 @@ function buildTechnicalAssessment(auditResult: AuditResult) {
 
 function buildRiskInterpretation(auditResult: AuditResult) {
   const risks = auditResult.risksToVerify || [];
+  const leakageRisk = auditResult.scores.leakageRisk;
+  const leakageLabel = leakageRiskLabel(leakageRisk);
 
   if (risks.length === 0) {
-    return "ModelHawk did not return specific risks to verify. This is positive, but it does not prove that the workflow is correct because the notebook was not executed.";
+    return `ModelHawk did not return specific risks to verify. The leakage-risk score is ${leakageLabel} (${leakageRisk}/100), which is positive, but it does not prove that the workflow is correct because the notebook was not executed.`;
   }
 
-  return `The risks identified by ModelHawk are review points, not confirmed errors. The most important checks are: ${toSentence(
+  return `The risks identified by ModelHawk are review points, not confirmed errors. The leakage-risk score is ${leakageLabel} (${leakageRisk}/100). The most important checks are: ${toSentence(
     risks.map(removeTrailingPeriod)
   )}. These points matter because static analysis can detect likely workflow signals but cannot confirm exactly how the notebook behaves when executed.`;
 }
@@ -490,15 +476,18 @@ function buildPortfolioVerdict(auditResult: AuditResult) {
     ? prettyLabel(profile.dataModality)
     : "unknown";
 
+  const leakageRisk = auditResult.scores.leakageRisk;
+  const leakageLabel = leakageRiskLabel(leakageRisk);
+
   if (
     auditResult.scores.metricQuality >= 80 &&
     auditResult.scores.reproducibility >= 75 &&
     auditResult.scores.portfolioReadiness >= 75
   ) {
-    return `As a portfolio project, this notebook looks promising. It presents a clear ${task} use case with ${modality} data and strong static signals around evaluation, reproducibility and explanation. The main improvement is to make the final model-selection logic, threshold choice, resampling safety and deployment limitations even easier to defend.`;
+    return `As a portfolio project, this notebook looks promising. It presents a clear ${task} use case with ${modality} data and strong static signals around evaluation, reproducibility and explanation. The leakage-risk score is ${leakageLabel} (${leakageRisk}/100), but the remaining review points should still be verified manually. The main improvement is to make the final model-selection logic, threshold choice, resampling safety and deployment limitations even easier to defend.`;
   }
 
-  return `As a portfolio project, this notebook has useful foundations but would benefit from stronger explanation. The most important improvements are to clarify the evaluation objective, justify the final model choice and make the limitations easy to defend in an interview.`;
+  return `As a portfolio project, this notebook has useful foundations but would benefit from stronger explanation. The leakage-risk score is ${leakageLabel} (${leakageRisk}/100). The most important improvements are to clarify the evaluation objective, justify the final model choice and make the limitations easy to defend in an interview.`;
 }
 
 function buildRecommendations(
@@ -637,7 +626,7 @@ function buildMarkdownCells(
 function buildVivaAnswers(auditResult: AuditResult) {
   return (auditResult.vivaQuestions || []).map((question) => ({
     question,
-    suggestedAnswer: buildDeterministicVivaAnswer(question, auditResult),
+    answer: buildDeterministicVivaAnswer(question, auditResult),
   }));
 }
 
@@ -771,6 +760,12 @@ function toSentence(items: string[]) {
   if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
 
   return `${clean.slice(0, -1).join(", ")} and ${clean[clean.length - 1]}`;
+}
+
+function leakageRiskLabel(value: number) {
+  if (value <= 25) return "low";
+  if (value < 60) return "moderate";
+  return "high";
 }
 
 function prettyLabel(value: string) {
