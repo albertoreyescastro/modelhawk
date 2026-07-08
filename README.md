@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.png" alt="ModelHawk logo" width="280" />
+  <img src="./public/logo.png" alt="ModelHawk logo" width="300" />
 </p>
 
 <h1 align="center">ModelHawk</h1>
@@ -22,7 +22,7 @@
 
 ## Overview
 
-**ModelHawk** is a personal AI/ML technical prototype that analyses Jupyter notebooks through static audit rules, detects machine-learning workflow signals, highlights likely risks, generates local AI-assisted examiner notes, and exports a professional PDF audit report.
+**ModelHawk** is a personal AI/ML technical prototype that analyses Jupyter notebooks through static audit rules, detects machine-learning workflow signals, highlights likely risks, generates local AI-assisted examiner notes, and exports professional PDF audit reports.
 
 The project combines:
 
@@ -53,23 +53,23 @@ A temporary live prototype is available here:
 
 ### Landing page
 
-![ModelHawk landing page](docs/screenshots/01-landing-page.png)
+![ModelHawk landing page](./docs/screenshots/01-landing-page.png)
 
 ### Notebook upload page
 
-![ModelHawk upload page](docs/screenshots/02-upload-page.png)
+![ModelHawk upload page](./docs/screenshots/02-upload-page.png)
 
 ### Static audit results
 
-![ModelHawk audit results](docs/screenshots/03-audit-results.png)
+![ModelHawk audit results](./docs/screenshots/03-audit-results.png)
 
 ### Local AI examiner notes
 
-![ModelHawk AI examiner notes](docs/screenshots/04-ai-examiner-notes.png)
+![ModelHawk AI examiner notes](./docs/screenshots/04-ai-examiner-notes.png)
 
 ### Generated PDF report
 
-![ModelHawk PDF report](docs/screenshots/05-pdf-report.png)
+![ModelHawk PDF report](./docs/screenshots/05-pdf-report.png)
 
 ---
 
@@ -112,7 +112,9 @@ The PDF report is generated locally through the ModelHawk PDF route using LaTeX.
 
 ## What ModelHawk does
 
-ModelHawk performs a static analysis of uploaded `.ipynb` notebooks. It does not execute notebook code. Instead, it parses notebook content and searches for technical signals related to machine-learning project quality.
+ModelHawk performs a static analysis of uploaded `.ipynb` notebooks.
+
+It does **not** execute notebook code. Instead, it parses notebook content and searches for technical signals related to machine-learning project quality.
 
 Current capabilities include:
 
@@ -151,3 +153,338 @@ Primary task: Classification
 Data modality: Tabular
 Problem traits: Imbalanced Data, Fraud Detection, Threshold/Cost Sensitive, Deep Learning
 Confidence: High
+```
+
+Example audit dimensions:
+
+```text
+Leakage risk
+Metric quality
+Reproducibility
+Portfolio readiness
+```
+
+Example review points include:
+
+```text
+Verify that SMOTE/resampling is applied only to the training data.
+Check that final conclusions prioritise minority-class performance.
+Verify that metrics are calculated on held-out data only.
+```
+
+---
+
+## AI examiner layer
+
+ModelHawk includes a local AI examiner layer powered by **Ollama**.
+
+The AI layer does not replace the deterministic audit engine. Instead, it uses the structured audit result as evidence and produces clearer technical explanations.
+
+The intended architecture is:
+
+```text
+Notebook
+  ↓
+Static parser and deterministic audit rules
+  ↓
+Structured audit JSON
+  ↓
+Local AI examiner notes
+  ↓
+Web report and PDF report
+```
+
+The AI examiner can generate:
+
+- executive summaries
+- technical assessments
+- risk interpretations
+- portfolio-oriented verdicts
+- improved recommendations
+- suggested markdown cells
+- viva/interview answer guidance
+- audit limitations
+
+The local AI layer is constrained to use the audit result as evidence and should not be interpreted as proof that a notebook is correct.
+
+---
+
+## PDF report generation
+
+ModelHawk can export a professional PDF report using a LaTeX backend.
+
+The PDF report includes:
+
+- cover page
+- executive summary
+- detected project profile
+- notebook structure
+- audit scores
+- findings
+- good practices
+- risks to verify
+- recommendations
+- suggested notebook improvements
+- viva questions
+- detected technical signals
+
+The PDF generator currently depends on a local LaTeX installation such as **MiKTeX** on Windows.
+
+---
+
+## Tech stack
+
+### Frontend and backend
+
+- Next.js
+- React
+- TypeScript
+- API routes
+- Tailwind CSS-style utility classes
+
+### Local AI
+
+- Ollama
+- Local LLM inference
+- Structured JSON-style AI output
+- AI examiner narrative generation
+
+### Report generation
+
+- LaTeX
+- `pdflatex`
+- Professional PDF report compilation
+
+### ML audit logic
+
+- Static notebook parsing
+- Rule-based signal detection
+- Heuristic scoring
+- Project profile inference
+- ML workflow quality checks
+
+---
+
+## Project structure
+
+```text
+modelhawk
+├── app
+│   ├── api
+│   │   ├── audit
+│   │   │   ├── route.ts
+│   │   │   └── ai
+│   │   │       └── route.ts
+│   │   └── report
+│   │       └── pdf
+│   │           └── route.ts
+│   ├── demo
+│   │   └── page.tsx
+│   ├── upload
+│   │   └── page.tsx
+│   ├── layout.tsx
+│   └── page.tsx
+├── examples
+│   └── credit_card_fraud_detection.ipynb
+├── docs
+│   ├── screenshots
+│   │   ├── 01-landing-page.png
+│   │   ├── 02-upload-page.png
+│   │   ├── 03-audit-results.png
+│   │   ├── 04-ai-examiner-notes.png
+│   │   └── 05-pdf-report.png
+│   └── reports
+│       └── modelhawk-sample-audit-report.pdf
+├── public
+│   ├── logo.png
+│   ├── report-icon.jpg
+│   ├── modelhawk-icon.png
+│   ├── modelhawk-wordmark.png
+│   └── modelhawk-full-logo.png
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+---
+
+## Running locally
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/albertoreyescastro/modelhawk.git
+cd modelhawk
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Start the Next.js development server
+
+```bash
+npm run dev
+```
+
+On Windows PowerShell, if script execution causes issues, use:
+
+```powershell
+npm.cmd run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+---
+
+## Running with local AI examiner notes
+
+ModelHawk uses Ollama for local AI examiner notes.
+
+### 1. Install Ollama
+
+Install Ollama for your operating system.
+
+### 2. Pull a local model
+
+Recommended lightweight model:
+
+```bash
+ollama pull llama3.2:3b
+```
+
+### 3. Test Ollama
+
+```bash
+ollama run llama3.2:3b
+```
+
+Exit with:
+
+```text
+/bye
+```
+
+### 4. Optional local environment file
+
+Create a `.env.local` file:
+
+```env
+OLLAMA_MODEL=llama3.2:3b
+OLLAMA_URL=http://localhost:11434/api/chat
+```
+
+This file is intentionally ignored by Git.
+
+---
+
+## Running the temporary public demo with Cloudflare Tunnel
+
+For local demonstration purposes, the app can be exposed temporarily using Cloudflare Tunnel.
+
+### Terminal 1: run Next.js
+
+```powershell
+cd C:\Users\alber\Projects\modelhawk
+npm.cmd run dev -- -H 127.0.0.1 -p 3000
+```
+
+### Terminal 2: run the tunnel
+
+```powershell
+cloudflared tunnel --url http://127.0.0.1:3000
+```
+
+Cloudflare will generate a temporary public URL.
+
+Important notes:
+
+- the URL is temporary
+- the app is only online while the local machine is running
+- the Next.js dev server must remain open
+- Ollama must remain available for local AI examiner notes
+- the tunnel must remain open
+- this setup is intended for prototype demonstration, not production hosting
+
+---
+
+## Limitations
+
+ModelHawk is currently a prototype and should be interpreted carefully.
+
+Current limitations:
+
+- it performs static analysis only
+- it does not execute notebooks
+- it cannot prove the absence of data leakage
+- it cannot guarantee methodological correctness
+- it cannot validate runtime outputs, plots or actual metric values
+- the local AI layer improves explanation but does not replace human review
+- the temporary public demo depends on a local machine and Cloudflare Tunnel
+- PDF generation currently depends on a local LaTeX installation
+
+The generated report should be treated as **technical guidance**, not as a final guarantee of ML quality.
+
+---
+
+## Roadmap
+
+Planned or possible future improvements:
+
+- add support for more ML project types
+- add deeper task-specific audit packs
+- add richer notebook structure analysis
+- add optional executed-notebook validation
+- add screenshot examples to the README
+- add sample generated PDF reports
+- improve AI examiner grounding and consistency
+- add public demo mode for hosted deployments
+- add Docker support
+- add CI checks
+- add more robust PDF rendering options
+- add support for multiple local LLM providers
+
+---
+
+## Why I built this
+
+ModelHawk was built as a personal technical project to explore how machine-learning notebooks can be reviewed more systematically.
+
+The project combines several areas I am interested in:
+
+- machine learning evaluation
+- AI-assisted technical review
+- static analysis
+- local AI tooling
+- technical documentation
+- scientific reporting
+- web prototyping
+- PDF report generation
+
+It is also designed as a portfolio project showing practical experience across AI, data, software prototyping and technical communication.
+
+---
+
+## Author
+
+**Alberto Reyes Castro**
+
+Physics graduate and MSc Artificial Intelligence Technology with Advanced Practice student.
+
+- GitHub: [albertoreyescastro](https://github.com/albertoreyescastro)
+- LinkedIn: [Alberto Reyes Castro](https://www.linkedin.com/in/alberto-reyes-ba5546238/)
+- Kaggle: [albertoreyescastro20](https://www.kaggle.com/albertoreyescastro20)
+
+---
+
+## License
+
+No license has been added yet.
+
+This repository is public for portfolio and code-review purposes. Reuse rights are not granted unless a license is added in the future.
