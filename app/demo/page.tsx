@@ -240,7 +240,7 @@ export default function DemoPage() {
               This demo mirrors the output generated from a credit card fraud
               detection notebook. ModelHawk detects the project profile,
               evaluates static ML workflow signals, highlights risks to verify,
-              generates local AI examiner notes and prepares viva-style answer
+              generates AI examiner notes and prepares viva-style answer
               guidance.
             </p>
 
@@ -350,13 +350,13 @@ export default function DemoPage() {
           <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.3em] text-purple-300">
-                Local AI examiner notes
+                AI examiner notes
               </p>
               <h2 className="mt-2 text-3xl font-black">
                 Technical interpretation generated from the audit JSON
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                The local AI layer uses the deterministic ModelHawk audit as
+                The AI examiner layer uses the deterministic ModelHawk audit as
                 evidence. It improves explanation, but does not prove the
                 notebook is correct.
               </p>
@@ -367,7 +367,7 @@ export default function DemoPage() {
                 Provider
               </p>
               <p className="mt-1 font-black text-purple-200">
-                Ollama · Local AI
+                Gemini / Ollama - AI Examiner
               </p>
             </div>
           </div>

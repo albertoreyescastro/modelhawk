@@ -62,10 +62,18 @@ type AiNarrative = {
   limitations: string[];
 };
 
-const OLLAMA_URL =
-  process.env.OLLAMA_URL || "http://localhost:11434/api/chat";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
+const OLLAMA_URL = process.env.OLLAMA_URL || "";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
+
+type AiProviderResult = {
+  candidate: Partial<AiNarrative>;
+  provider: "gemini" | "ollama" | "deterministic";
+  model: string;
+  warning?: string;
+};
 
 export async function POST(request: Request) {
   try {
@@ -81,30 +89,199 @@ export async function POST(request: Request) {
       );
     }
 
-    const compactAudit = compactAuditResult(auditResult);
+    const providerResult = await generateAiCandidate(auditResult);
+    const aiNarrative = buildControlledAiNarrative(
+      providerResult.candidate,
+      auditResult
+    );
 
-    const response = await fetch(OLLAMA_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    return NextResponse.json({
+      aiNarrative,
+      provider: providerResult.provider,
+      model: providerResult.model,
+      warning: providerResult.warning,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unknown AI narrative generation error.";
+
+    console.error("MODELHAWK AI ERROR:");
+    console.error(message);
+
+    return NextResponse.json(
+      {
+        error: message.slice(0, 3000),
       },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        stream: false,
-        format: AI_NARRATIVE_SCHEMA,
-        options: {
-          temperature: 0.1,
-          num_ctx: 8192,
-          num_predict: 3000,
+      { status: 500 }
+    );
+  }
+}
+
+async function generateAiCandidate(
+  auditResult: AuditResult
+): Promise<AiProviderResult> {
+  const warnings: string[] = [];
+
+  if (GEMINI_API_KEY) {
+    try {
+      return await generateWithGemini(auditResult);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      console.error("MODELHAWK GEMINI ERROR:");
+      console.error(message);
+      warnings.push(`Gemini failed: ${message.slice(0, 500)}`);
+    }
+  }
+
+  if (OLLAMA_URL) {
+    try {
+      return await generateWithOllama(auditResult, warnings);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      console.error("MODELHAWK OLLAMA ERROR:");
+      console.error(message);
+      warnings.push(`Ollama failed: ${message.slice(0, 500)}`);
+    }
+  }
+
+  return {
+    candidate: {},
+    provider: "deterministic",
+    model: "modelhawk-controlled-fallback",
+    warning:
+      warnings.length > 0
+        ? warnings.join(" | ")
+        : "No GEMINI_API_KEY or OLLAMA_URL was configured. ModelHawk used the deterministic examiner fallback.",
+  };
+}
+
+async function generateWithGemini(
+  auditResult: AuditResult
+): Promise<AiProviderResult> {
+  const prompt = buildAiPrompt(auditResult);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+    GEMINI_MODEL
+  )}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: MODELHAWK_AI_INSTRUCTIONS }],
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
         },
-        messages: [
-          {
-            role: "system",
-            content: MODELHAWK_AI_INSTRUCTIONS,
-          },
-          {
-            role: "user",
-            content: `Generate an AI-assisted ModelHawk narrative from this static audit JSON.
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 3000,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Gemini request failed. Model: ${GEMINI_MODEL}. Details: ${errorText}`
+    );
+  }
+
+  const data = await response.json();
+  const content = extractGeminiText(data);
+
+  if (!content) {
+    throw new Error("Gemini returned an empty or invalid response.");
+  }
+
+  return {
+    candidate: parseAiCandidate(content),
+    provider: "gemini",
+    model: GEMINI_MODEL,
+  };
+}
+
+async function generateWithOllama(
+  auditResult: AuditResult,
+  previousWarnings: string[]
+): Promise<AiProviderResult> {
+  const prompt = buildAiPrompt(auditResult);
+
+  const response = await fetch(OLLAMA_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      stream: false,
+      format: AI_NARRATIVE_SCHEMA,
+      options: {
+        temperature: 0.1,
+        num_ctx: 8192,
+        num_predict: 3000,
+      },
+      messages: [
+        {
+          role: "system",
+          content: MODELHAWK_AI_INSTRUCTIONS,
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Ollama request failed.
+
+Make sure:
+1. Ollama is running.
+2. The model is installed.
+3. You can run this in PowerShell:
+   ollama run ${OLLAMA_MODEL}
+
+Model: ${OLLAMA_MODEL}
+URL: ${OLLAMA_URL}
+
+Details:
+${errorText}`
+    );
+  }
+
+  const data = await response.json();
+  const content = data?.message?.content;
+
+  if (!content || typeof content !== "string") {
+    throw new Error("Ollama returned an empty or invalid response.");
+  }
+
+  return {
+    candidate: parseAiCandidate(content),
+    provider: "ollama",
+    model: OLLAMA_MODEL,
+    warning:
+      previousWarnings.length > 0 ? previousWarnings.join(" | ") : undefined,
+  };
+}
+
+function buildAiPrompt(auditResult: AuditResult) {
+  const compactAudit = compactAuditResult(auditResult);
+
+  return `Generate an AI-assisted ModelHawk narrative from this static audit JSON.
 
 Return ONLY valid JSON matching the requested schema.
 
@@ -118,68 +295,40 @@ Critical rules:
 - Do not say "the notebook uses SMOTE only on training data". Say this must be verified.
 - Do not say "the notebook does not explicitly state X" unless the audit JSON explicitly says that.
 - Do not put notebook weaknesses inside "limitations" unless directly supported by the audit JSON.
-- The "limitations" field must describe limitations of static analysis and the local AI layer.
+- The "limitations" field must describe limitations of static analysis and the AI layer.
 - You must answer every viva question from "vivaQuestions".
 
+JSON_SCHEMA:
+${JSON.stringify(AI_NARRATIVE_SCHEMA, null, 2)}
+
 AUDIT_JSON:
-${JSON.stringify(compactAudit, null, 2)}`,
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-
-      throw new Error(
-        `Ollama request failed.
-
-Make sure:
-1. Ollama is running.
-2. The model is installed.
-3. You can run this in PowerShell:
-   ollama run ${OLLAMA_MODEL}
-
-Model: ${OLLAMA_MODEL}
-URL: ${OLLAMA_URL}
-
-Details:
-${errorText}`
-      );
-    }
-
-    const data = await response.json();
-    const content = data?.message?.content;
-
-    if (!content || typeof content !== "string") {
-      throw new Error("Ollama returned an empty or invalid response.");
-    }
-
-    const aiCandidate = parseAiCandidate(content);
-    const aiNarrative = buildControlledAiNarrative(aiCandidate, auditResult);
-
-    return NextResponse.json({
-      aiNarrative,
-      provider: "ollama",
-      model: OLLAMA_MODEL,
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unknown local AI narrative generation error.";
-
-    console.error("MODELHAWK LOCAL AI ERROR:");
-    console.error(message);
-
-    return NextResponse.json(
-      {
-        error: message.slice(0, 3000),
-      },
-      { status: 500 }
-    );
-  }
+${JSON.stringify(compactAudit, null, 2)}`;
 }
+
+function extractGeminiText(data: unknown) {
+  const candidate = (data as {
+    candidates?: {
+      content?: {
+        parts?: {
+          text?: unknown;
+        }[];
+      };
+    }[];
+  })?.candidates?.[0];
+
+  const parts = candidate?.content?.parts || [];
+  const text = parts
+    .map((part) => (typeof part.text === "string" ? part.text : ""))
+    .join("\n")
+    .trim();
+
+  return text;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 
 const MODELHAWK_AI_INSTRUCTIONS = `
 You are ModelHawk's AI Examiner layer.
@@ -205,7 +354,7 @@ For viva answers:
 - Avoid unsupported certainty.
 
 For limitations:
-- Only describe limitations of the static audit and local AI layer.
+- Only describe limitations of the static audit and AI examiner layer.
 - Do not invent new notebook weaknesses.
 
 Style:
@@ -670,7 +819,7 @@ function buildDeterministicVivaAnswer(
 function buildStaticAuditLimitations() {
   return [
     "This AI examiner layer uses the static ModelHawk audit as evidence and does not execute the notebook.",
-    "The local AI model can improve wording and interpretation, but it cannot prove that the methodology is correct.",
+    "The configured AI provider can improve wording and interpretation, but it cannot prove that the methodology is correct.",
     "The audit can detect code and markdown signals, but manual review is still needed to verify data leakage, metric calculation and validation design.",
     "The generated text should be treated as technical guidance, not as a guarantee of model quality or deployment readiness.",
   ];
@@ -774,3 +923,4 @@ function prettyLabel(value: string) {
     .replaceAll("-", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
+
