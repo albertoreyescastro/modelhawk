@@ -73,6 +73,7 @@ export default function UploadPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState("");
   const [aiError, setAiError] = useState("");
+  const [aiProviderNotice, setAiProviderNotice] = useState("");
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -84,6 +85,7 @@ export default function UploadPage() {
     setAiNarrative(null);
     setError("");
     setAiError("");
+    setAiProviderNotice("");
   }
 
   async function handleStartScan() {
@@ -93,6 +95,7 @@ export default function UploadPage() {
     setAiLoading(false);
     setError("");
     setAiError("");
+    setAiProviderNotice("");
     setResult(null);
     setAiNarrative(null);
 
@@ -129,6 +132,7 @@ export default function UploadPage() {
   async function generateAiNarrative(auditData: AuditResult) {
     setAiLoading(true);
     setAiError("");
+    setAiProviderNotice("");
 
     try {
       const response = await fetch("/api/audit/ai", {
@@ -146,6 +150,28 @@ export default function UploadPage() {
       }
 
       setAiNarrative(data.aiNarrative);
+
+      const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+      const provider = typeof data.provider === "string" ? data.provider : "";
+      const model = typeof data.model === "string" ? data.model : "";
+
+      if (warnings.length > 0 || provider === "ollama" || provider === "deterministic") {
+        let providerLabel = "fallback examiner";
+
+        if (provider === "ollama") {
+          providerLabel = "Ollama fallback" + (model ? " (" + model + ")" : "");
+        } else if (provider === "deterministic") {
+          providerLabel = "deterministic fallback examiner";
+        }
+
+        setAiProviderNotice(
+          "The primary AI provider was temporarily unavailable, so ModelHawk used the " +
+            providerLabel +
+            ". The deterministic static audit still completed successfully."
+        );
+      } else {
+        setAiProviderNotice("");
+      }
     } catch (err) {
       setAiError(
         err instanceof Error
@@ -300,6 +326,7 @@ export default function UploadPage() {
                 aiNarrative={aiNarrative}
                 aiLoading={aiLoading}
                 aiError={aiError}
+                aiProviderNotice={aiProviderNotice}
                 onRegenerateAi={() => generateAiNarrative(result)}
               />
             )}
@@ -315,12 +342,14 @@ function AuditResults({
   aiNarrative,
   aiLoading,
   aiError,
+  aiProviderNotice,
   onRegenerateAi,
 }: {
   result: AuditResult;
   aiNarrative: AiNarrative | null;
   aiLoading: boolean;
   aiError: string;
+  aiProviderNotice: string;
   onRegenerateAi: () => void;
 }) {
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -411,6 +440,7 @@ function AuditResults({
         aiNarrative={aiNarrative}
         loading={aiLoading}
         error={aiError}
+        providerNotice={aiProviderNotice}
         onRegenerate={onRegenerateAi}
       />
 
@@ -477,11 +507,13 @@ function AiExaminerPanel({
   aiNarrative,
   loading,
   error,
+  providerNotice,
   onRegenerate,
 }: {
   aiNarrative: AiNarrative | null;
   loading: boolean;
   error: string;
+  providerNotice: string;
   onRegenerate: () => void;
 }) {
   return (
@@ -506,6 +538,13 @@ function AiExaminerPanel({
             {loading ? "Generating..." : "Regenerate notes"}
           </button>
         </div>
+
+        {providerNotice && !error && (
+          <div className="mb-4 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-4">
+            <p className="text-sm font-semibold text-yellow-100">AI provider notice</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">{providerNotice}</p>
+          </div>
+        )}
 
         {loading && <AiGeneratingPanel />}
 

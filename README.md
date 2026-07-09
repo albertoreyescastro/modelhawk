@@ -5,7 +5,7 @@
 <h1 align="center">ModelHawk</h1>
 
 <p align="center">
-  <strong>Static ML notebook auditing with local AI examiner notes and professional PDF reports.</strong>
+  <strong>Static ML notebook auditing with AI examiner notes and professional LaTeX PDF reports.</strong>
 </p>
 
 <p align="center">
@@ -14,7 +14,8 @@
   </a>
   <img src="https://img.shields.io/badge/Next.js-000000?logo=nextdotjs&logoColor=white" alt="Next.js" />
   <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Ollama-local%20AI-222222" alt="Ollama local AI" />
+  <img src="https://img.shields.io/badge/Gemini-AI%20provider-4285F4" alt="Gemini AI provider" />
+  <img src="https://img.shields.io/badge/Ollama-local%20fallback-222222" alt="Ollama local fallback" />
   <img src="https://img.shields.io/badge/LaTeX-PDF%20reports-008080" alt="LaTeX PDF reports" />
 </p>
 
@@ -22,13 +23,15 @@
 
 ## Overview
 
-**ModelHawk** is a personal AI/ML technical prototype that analyses Jupyter notebooks through static audit rules, detects machine-learning workflow signals, highlights likely risks, generates local AI-assisted examiner notes, and exports professional PDF audit reports.
+**ModelHawk** is a personal AI/ML technical prototype that analyses Jupyter notebooks through static audit rules, detects machine-learning workflow signals, highlights likely risks, generates AI-assisted examiner notes, and exports professional PDF audit reports.
 
 The project combines:
 
 - **Next.js** and **TypeScript** for the web application
 - **Static notebook analysis** for deterministic ML workflow checks
-- **Ollama** for local AI examiner notes
+- **Gemini API** for hosted AI examiner notes when configured
+- **Ollama** as an optional local AI fallback
+- **Deterministic fallback logic** when no AI provider is available
 - **LaTeX / pdflatex** for professional PDF report generation
 - **Portfolio-oriented ML review logic** for technical documentation and interview preparation
 
@@ -38,13 +41,13 @@ ModelHawk is currently a prototype and should be interpreted as technical guidan
 
 ## Live prototype demo
 
-A temporary live prototype is available here:
+A temporary live prototype may be available here:
 
 [Open ModelHawk live demo](https://website-respondents-jaguar-opened.trycloudflare.com)
 
 > **Demo availability note**  
 > This prototype is currently exposed through a temporary Cloudflare Tunnel from my local development machine.  
-> The link only works while my local terminal, Next.js server, Ollama service and tunnel are running.  
+> The link only works while my local terminal, Next.js server and tunnel are running.  
 > If the link is offline, the code can still be reviewed and run locally using the instructions below.
 
 ---
@@ -53,23 +56,27 @@ A temporary live prototype is available here:
 
 ### Landing page
 
-![ModelHawk landing page](./docs/screenshots/01-landing-page.png)
+![ModelHawk landing page](./public/docs/screenshots/01-landing-page.png)
 
-### Notebook upload page
+### Notebook upload workflow
 
-![ModelHawk upload page](./docs/screenshots/02-upload-page.png)
+![ModelHawk upload page](./public/docs/screenshots/02-upload-page.png)
 
 ### Static audit results
 
-![ModelHawk audit results](./docs/screenshots/03-audit-results.png)
+![ModelHawk audit results](./public/docs/screenshots/03-audit-results.png)
 
-### Local AI examiner notes
+### AI examiner notes
 
-![ModelHawk AI examiner notes](./docs/screenshots/04-ai-examiner-notes.png)
+![ModelHawk AI examiner notes](./public/docs/screenshots/04-ai-examiner-notes.png)
 
-### Generated PDF report
+### LaTeX PDF report
 
-![ModelHawk PDF report](./docs/screenshots/05-pdf-report.png)
+![ModelHawk PDF report](./public/docs/screenshots/05-pdf-report.png)
+
+### Demo page
+
+![ModelHawk demo page](./public/docs/screenshots/06-demo-page.png)
 
 ---
 
@@ -77,13 +84,13 @@ A temporary live prototype is available here:
 
 You can test ModelHawk using the sample fraud detection notebook included in this repository:
 
-[Download demo notebook: credit_card_fraud_detection.ipynb](./examples/credit_card_fraud_detection.ipynb)
+[Download demo notebook: credit_card_fraud_detection.ipynb](./public/examples/credit_card_fraud_detection.ipynb)
 
 Recommended test flow:
 
 1. Open the live prototype or run the project locally.
 2. Go to the **Upload Notebook** page.
-3. Upload `examples/credit_card_fraud_detection.ipynb`.
+3. Upload `credit_card_fraud_detection.ipynb`.
 4. Run the static audit.
 5. Review the detected project profile, scores, findings, risks, recommendations and AI examiner notes.
 6. Download the generated PDF report.
@@ -102,11 +109,11 @@ The demo notebook is a machine-learning project focused on:
 
 ## Sample PDF report
 
-A sample generated audit report can be included here:
+A sample generated audit report is included here:
 
-[Open sample ModelHawk PDF report](./docs/reports/modelhawk-sample-audit-report.pdf)
+[Open sample ModelHawk PDF report](./public/docs/reports/modelhawk-sample-audit-report.pdf)
 
-The PDF report is generated locally through the ModelHawk PDF route using LaTeX.
+The PDF report is generated through the ModelHawk PDF route using LaTeX.
 
 ---
 
@@ -124,6 +131,7 @@ Current capabilities include:
 - recognising problem traits such as class imbalance, fraud detection, threshold-sensitive evaluation or deep learning signals
 - detecting ML workflow signals such as:
   - train/test split
+  - train/validation split
   - stratified split
   - cross-validation
   - random seeds
@@ -139,7 +147,7 @@ Current capabilities include:
 - highlighting risks to verify
 - suggesting priority fixes and notebook improvements
 - generating viva/interview preparation questions
-- generating local AI examiner notes with Ollama
+- generating AI examiner notes from the structured audit result
 - exporting a professional PDF audit report compiled with LaTeX
 
 ---
@@ -176,9 +184,25 @@ Verify that metrics are calculated on held-out data only.
 
 ## AI examiner layer
 
-ModelHawk includes a local AI examiner layer powered by **Ollama**.
+ModelHawk includes an AI examiner layer that converts deterministic audit results into clearer technical review notes.
 
-The AI layer does not replace the deterministic audit engine. Instead, it uses the structured audit result as evidence and produces clearer technical explanations.
+The AI layer does **not** replace the deterministic audit engine. It uses the structured audit result as evidence and produces clearer explanations, recommendations and viva-style answer guidance.
+
+Current provider order:
+
+```text
+GEMINI_API_KEY configured
+  ↓
+Use Gemini API
+
+No Gemini key or Gemini temporarily unavailable
+  ↓
+Use Ollama if OLLAMA_URL is configured
+
+No external/local provider available
+  ↓
+Use deterministic ModelHawk fallback examiner
+```
 
 The intended architecture is:
 
@@ -189,7 +213,7 @@ Static parser and deterministic audit rules
   ↓
 Structured audit JSON
   ↓
-Local AI examiner notes
+AI examiner notes
   ↓
 Web report and PDF report
 ```
@@ -205,7 +229,7 @@ The AI examiner can generate:
 - viva/interview answer guidance
 - audit limitations
 
-The local AI layer is constrained to use the audit result as evidence and should not be interpreted as proof that a notebook is correct.
+If the primary AI provider is temporarily unavailable, ModelHawk can show an AI provider notice and use a fallback examiner instead.
 
 ---
 
@@ -225,10 +249,11 @@ The PDF report includes:
 - risks to verify
 - recommendations
 - suggested notebook improvements
-- viva questions
+- AI examiner notes when available
+- viva questions and answer guidance
 - detected technical signals
 
-The PDF generator currently depends on a local LaTeX installation such as **MiKTeX** on Windows.
+The PDF generator currently depends on a local LaTeX installation such as **MiKTeX** on Windows. A production-friendly LaTeX workflow is planned so that PDF generation does not depend on a local machine.
 
 ---
 
@@ -242,12 +267,13 @@ The PDF generator currently depends on a local LaTeX installation such as **MiKT
 - API routes
 - Tailwind CSS-style utility classes
 
-### Local AI
+### AI examiner
 
-- Ollama
-- Local LLM inference
+- Gemini API when configured
+- Ollama as an optional local fallback
+- Deterministic fallback examiner
 - Structured JSON-style AI output
-- AI examiner narrative generation
+- Provider fallback notices
 
 ### Report generation
 
@@ -287,15 +313,21 @@ modelhawk
 ├── examples
 │   └── credit_card_fraud_detection.ipynb
 ├── docs
-│   ├── screenshots
-│   │   ├── 01-landing-page.png
-│   │   ├── 02-upload-page.png
-│   │   ├── 03-audit-results.png
-│   │   ├── 04-ai-examiner-notes.png
-│   │   └── 05-pdf-report.png
 │   └── reports
 │       └── modelhawk-sample-audit-report.pdf
 ├── public
+│   ├── docs
+│   │   ├── reports
+│   │   │   └── modelhawk-sample-audit-report.pdf
+│   │   └── screenshots
+│   │       ├── 01-landing-page.png
+│   │       ├── 02-upload-page.png
+│   │       ├── 03-audit-results.png
+│   │       ├── 04-ai-examiner-notes.png
+│   │       ├── 05-pdf-report.png
+│   │       └── 06-demo-page.png
+│   ├── examples
+│   │   └── credit_card_fraud_detection.ipynb
 │   ├── logo.png
 │   ├── report-icon.jpg
 │   ├── modelhawk-icon.png
@@ -343,9 +375,31 @@ http://localhost:3000
 
 ---
 
-## Running with local AI examiner notes
+## Environment variables
 
-ModelHawk uses Ollama for local AI examiner notes.
+Create a `.env.local` file for local development if you want AI examiner notes.
+
+### Gemini provider
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.5-flash
+```
+
+### Ollama fallback
+
+```env
+OLLAMA_MODEL=llama3.2:3b
+OLLAMA_URL=http://localhost:11434/api/chat
+```
+
+`.env.local` is intentionally ignored by Git and should never be committed.
+
+---
+
+## Running with Ollama fallback
+
+Ollama is optional. It is useful when you want a local fallback provider.
 
 ### 1. Install Ollama
 
@@ -370,17 +424,6 @@ Exit with:
 ```text
 /bye
 ```
-
-### 4. Optional local environment file
-
-Create a `.env.local` file:
-
-```env
-OLLAMA_MODEL=llama3.2:3b
-OLLAMA_URL=http://localhost:11434/api/chat
-```
-
-This file is intentionally ignored by Git.
 
 ---
 
@@ -408,7 +451,8 @@ Important notes:
 - the URL is temporary
 - the app is only online while the local machine is running
 - the Next.js dev server must remain open
-- Ollama must remain available for local AI examiner notes
+- local PDF generation currently requires LaTeX to be installed
+- Ollama is optional if Gemini is configured, but it can be used as a local fallback
 - the tunnel must remain open
 - this setup is intended for prototype demonstration, not production hosting
 
@@ -425,7 +469,9 @@ Current limitations:
 - it cannot prove the absence of data leakage
 - it cannot guarantee methodological correctness
 - it cannot validate runtime outputs, plots or actual metric values
-- the local AI layer improves explanation but does not replace human review
+- AI examiner notes improve explanation but do not replace human review
+- Gemini or any external provider may be temporarily unavailable or rate-limited
+- fallback examiner notes should be treated as guidance, not proof of correctness
 - the temporary public demo depends on a local machine and Cloudflare Tunnel
 - PDF generation currently depends on a local LaTeX installation
 
@@ -441,14 +487,15 @@ Planned or possible future improvements:
 - add deeper task-specific audit packs
 - add richer notebook structure analysis
 - add optional executed-notebook validation
-- add screenshot examples to the README
-- add sample generated PDF reports
-- improve AI examiner grounding and consistency
-- add public demo mode for hosted deployments
+- add a stable public deployment
+- make LaTeX PDF generation production-friendly
 - add Docker support
 - add CI checks
 - add more robust PDF rendering options
-- add support for multiple local LLM providers
+- add more sample notebooks and reports
+- improve AI examiner grounding and consistency
+- add provider status display in the UI
+- add more detailed report customisation
 
 ---
 
@@ -461,7 +508,7 @@ The project combines several areas I am interested in:
 - machine learning evaluation
 - AI-assisted technical review
 - static analysis
-- local AI tooling
+- local and hosted AI tooling
 - technical documentation
 - scientific reporting
 - web prototyping
